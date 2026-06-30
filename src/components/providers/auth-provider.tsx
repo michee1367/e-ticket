@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import type { User } from "@/types";
-
-const API_LOGIN_URL = "http://localhost:3001/api/login";
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL;//
+const API_LOGIN_URL = `${NEXT_PUBLIC_API_URL}/login`;
 
 interface AuthContextType {
   user: User | null;
