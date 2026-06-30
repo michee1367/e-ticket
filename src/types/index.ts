@@ -81,6 +81,7 @@ export interface Participant {
   church: string;
   retreatId: string;
   roomId?: string;
+  qrCode?: string;
   status: ParticipantStatus;
   avatar: string;
   registeredAt: string;

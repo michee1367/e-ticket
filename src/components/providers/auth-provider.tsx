@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import type { User } from "@/types";
 
+const API_LOGIN_URL = "http://localhost:3001/api/login";
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -33,18 +35,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false);
   }, []);
-
   const login = useCallback(async (email: string, password: string) => {
-    await new Promise((r) => setTimeout(r, 800));
-    if (email && password.length >= 4) {
+    console.log("login ok");
+    
+    try {
+      const res = await fetch(`${API_LOGIN_URL}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      // Si le serveur renvoie un statut d'erreur (400, 401, 500, etc.)
+      if (!res.ok) {
+        // Optionnel : essayer de récupérer le message d'erreur renvoyé par l'API
+        let errorData;
+        try {
+          errorData = await res.json();
+        } catch {
+          errorData = null;
+        }
+        
+        throw new Error(errorData?.message || `Erreur de connexion (Code: ${res.status})`);
+      }
+
+      const dictToken = await res.json();
+      
+      if (!dictToken?.token) {
+        throw new Error("Authentification réussie, mais aucun jeton n'a été fourni par le serveur.");
+      }
+
       const loggedUser = { ...DEMO_USER, email };
       setUser(loggedUser);
       localStorage.setItem("auth_user", JSON.stringify(loggedUser));
-      return true;
-    }
-    return false;
-  }, []);
+      localStorage.setItem("auth_token", dictToken.token);
 
+      console.log(loggedUser);
+      return true;
+
+    } catch (error) {
+      console.error("Échec de la fonction login :", error);
+      // Relance l'erreur pour qu'elle soit gérée par le composant qui appelle login()
+      throw error; 
+    }
+  }, []);
   const register = useCallback(async (data: { fullName: string; phone: string; email: string; password: string }) => {
     await new Promise((r) => setTimeout(r, 1000));
     const newUser: User = {
@@ -63,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_token");
   }, []);
 
   return (

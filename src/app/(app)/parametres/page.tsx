@@ -53,7 +53,7 @@ export default function ParametresPage() {
 
   const handleReset = () => {
     if (confirm("Réinitialiser toutes les données locales ? Les inscriptions publiques seront perdues.")) {
-      resetDatabase();
+      //resetDatabase();
       toast.success("Base de données réinitialisée");
     }
   };

@@ -30,14 +30,14 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     // Mise à jour de l'identifiant par défaut avec le compte d'Abraham Oweteshe
-    defaultValues: { email: "abrahamoweteshe@gmail.com", password: "admin123" },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
 
     // 1. Définition du compte administrateur unique par défaut
-    const ADMIN_EMAIL = "abrahamoweteshe@gmail.com";
+    /*const ADMIN_EMAIL = "abrahamoweteshe@gmail.com";
     const ADMIN_PASSWORD = "admin123";
 
     let isAuthorized = false;
@@ -60,6 +60,7 @@ export default function LoginPage() {
       }
     }
 
+
     // 4. Gestion de la connexion ou du rejet
     if (isAuthorized) {
       // On appelle la fonction de ton provider pour simuler l'état connecté globale au niveau de ton app
@@ -70,7 +71,20 @@ export default function LoginPage() {
     } else {
       setLoading(false);
       toast.error("Identifiants incorrects ou compte inexistant");
+    }*/
+   try {
+      await login(data.email, data.password)
+      setLoading(false);
+      toast.success("Connexion réussie !");
+      router.push("/dashboard");
+
+    } catch (error) {
+      setLoading(false);
+      toast.error("Identifiants incorrects ou compte inexistant");
+      console.error("Erreur de chargement de l'API", error);
     }
+
+    let isAuthorized = true;
   };
 
   return (

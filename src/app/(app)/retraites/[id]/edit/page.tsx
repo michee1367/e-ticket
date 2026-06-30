@@ -63,7 +63,7 @@ export default function EditRetraitePage({ params }: { params: Promise<{ id: str
 
   const onSubmit = async (data: FormData) => {
     await new Promise((r) => setTimeout(r, 600));
-    updateRetreat(id, data);
+    //updateRetreat(id, data);
     toast.success("Retraite modifiée");
     router.push(`/retraites/${id}`);
   };

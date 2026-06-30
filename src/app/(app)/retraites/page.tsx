@@ -29,7 +29,7 @@ export default function RetraitesPage() {
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Supprimer la retraite "${name}" ?`)) {
-      deleteRetreat(id);
+      //deleteRetreat(id);
       toast.success("Retraite supprimée");
     }
   };

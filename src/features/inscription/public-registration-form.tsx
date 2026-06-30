@@ -20,6 +20,7 @@ import { useData } from "@/components/providers/data-provider";
 import { getRetreatSpotsRemaining } from "@/mock-data";
 import { formatDate } from "@/lib/utils";
 import type { Participant, Retreat } from "@/types";
+import Image from 'next/image';
 
 // Types
 interface PublicRegistrationFormProps {
@@ -104,7 +105,7 @@ export function PublicRegistrationForm({ retreat }: PublicRegistrationFormProps)
     const fullName = fullNameParts.join(' ');
 
     // 1. Enregistrement direct dans le context global (Page participants)
-    const newParticipant = registerPublicParticipant({
+    const newParticipant = await registerPublicParticipant({
       retreatId: retreat.id,
       fullName,
       phone: data.phone,
@@ -125,7 +126,7 @@ export function PublicRegistrationForm({ retreat }: PublicRegistrationFormProps)
   // ÉCRAN DE SUCCÈS (Après validation)
   if (confirmed) {
     return (
-      <div className="min-h-screen bg-slate-50 py-6 sm:py-10 px-4">
+      <div className="min-h-screen bg-slate-50 py-3 sm:py-5 px-4">
         <div className="max-w-2xl mx-auto">
           <Card className="border-emerald-500/30 shadow-xl overflow-hidden bg-white">
             <div className="h-2 bg-emerald-500" />
@@ -137,7 +138,7 @@ export function PublicRegistrationForm({ retreat }: PublicRegistrationFormProps)
                 Inscription confirmée !
               </CardTitle>
               <CardDescription className="text-sm sm:text-base mt-1">
-                Votre participation à la retraite a été enregistrée avec succès.
+                Merci de vous être enregistré pour votre participation à la retraite, vous recevrez votre badje d’accès lors de votre confirmation ( paiement) à la table de littérature De L’Église la présence de Dieu m’accompagne
               </CardDescription>
             </CardHeader>
 
@@ -154,6 +155,31 @@ export function PublicRegistrationForm({ retreat }: PublicRegistrationFormProps)
                   <p className="sm:col-span-2"><span className="font-semibold text-slate-800">Lieu :</span> {retreat.location}</p>
                 </div>
               </div>
+              {confirmed?.qrCode && (
+                <div className="flex flex-col items-center p-4">
+                  <div className="relative border p-2 bg-white rounded-lg">
+                    <Image
+                      src={confirmed.qrCode}
+                      alt="QR Code d'inscription"
+                      width={256}
+                      height={256}
+                      priority
+                      unoptimized
+                    />
+                  </div>
+
+                  <p>{confirmed.registrationNumber}</p>
+                  
+                  {/* Optionnel : Le bouton de téléchargement dont on a parlé juste en dessous 
+                  <a 
+                    href={confirmed.qrCode} 
+                    download={`qrcode-${confirmed.registrationNumber || 'inscription'}.png`}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
+                  >
+                    Télécharger mon QR Code
+                  </a>*/}
+                </div>
+              )}
               
               <div className="flex flex-col sm:flex-row gap-3 pt-2 print:hidden">
                 {/* Le bouton "Voir d'autres retraites" a été supprimé ici */}

@@ -34,7 +34,7 @@ export default function NouvelleRetraitePage() {
 
   const onSubmit = async (data: FormData) => {
     await new Promise((r) => setTimeout(r, 800));
-    addRetreat({ ...data, status: "planifiee" });
+    //addRetreat({ ...data, status: "planifiee" });
     toast.success("Retraite créée avec succès !");
     router.push("/retraites");
   };

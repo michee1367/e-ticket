@@ -18,7 +18,7 @@ export const CHURCHES = [
 ];
 
 const LOCATIONS = [
-  "Ascitech",
+  "Ascitech pigeon",
   "Retraite de Kinkole",
   "Domaine de Mbanza-Ngungu",
   "Centre La Grâce - Kisantu",

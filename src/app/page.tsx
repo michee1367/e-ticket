@@ -94,7 +94,7 @@ export default function InscriptionPage() {
               <p className="text-[10px] text-slate-400 truncate max-w-[180px] sm:max-w-none">{church?.name || "Communauté Évangélique"}</p>
             </div>
           </div>
-          {/* Bouton Connexion (Droite) */}
+          {/* Bouton Connexion (Droite) 
           <div className="flex items-center">
             <Link href="/login">
               <Button 
@@ -104,7 +104,7 @@ export default function InscriptionPage() {
                 Connexion
               </Button>
             </Link>
-          </div>
+          </div>*/}
 
         </div>
       </header>

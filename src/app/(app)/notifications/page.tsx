@@ -27,11 +27,11 @@ export default function NotificationsPage() {
           <h1 className="text-2xl font-bold text-text">Notifications</h1>
           <p className="text-slate-500 text-sm mt-1">{unread.length} non lue{unread.length > 1 ? "s" : ""}</p>
         </div>
-        {unread.length > 0 && (
+        {/*unread.length > 0 && (
           <Button variant="outline" size="sm" onClick={markAllNotificationsRead}>
             <CheckCheck className="h-4 w-4" /> Tout marquer comme lu
           </Button>
-        )}
+        )*/}
       </div>
 
       <Card>
@@ -45,7 +45,7 @@ export default function NotificationsPage() {
             <p className="text-center text-slate-400 py-12">Aucune notification</p>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((notif) => {
+              {/*notifications.map((notif) => {
                 const config = typeConfig[notif.type];
                 return (
                   <button
@@ -66,7 +66,7 @@ export default function NotificationsPage() {
                     </div>
                   </button>
                 );
-              })}
+              })*/}
             </div>
           )}
         </CardContent>

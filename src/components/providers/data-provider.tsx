@@ -19,71 +19,62 @@ import type {
   User,
   ActivityLog,
 } from "@/types";
-import {
-  mockRooms,
-  mockUsers,
-  getRoomOccupants,
-  getPavilionStats,
-} from "@/mock-data";
-import {
-  loadLocalDatabase,
-  saveLocalDatabase,
-  resetLocalDatabase,
-  getNextRegistrationNumber,
-} from "@/services/local-db";
+import { mockUsers, getRoomOccupants, getPavilionStats,
+  mockChurch,
+  mockRetreats } from "@/mock-data";
+import { fetchDatabase } from "@/services/api";
+
+const API_ADMIN_URL = process.env.NEXT_PUBLIC_API_ADMIN_URL;
+//const API_ADMIN_URL = "http://localhost:3001/api/admin";
+
+const API_PUBLIC_URL = process.env.NEXT_PUBLIC_API_PUBLIC_URL;
+//const API_PUBLIC_URL = "http://localhost:3001/api/public";
+
+
 
 interface DataContextType {
   isReady: boolean;
   church: Church;
   retreats: Retreat[];
   participants: Participant[];
-  updateParticipantStatus: (participantId: string, status: string) => void;
-  assignRoomToParticipant: (participantId: string, roomId: string | null | undefined) => void;
   rooms: Room[];
   users: User[];
   notifications: Notification[];
   activityLogs: ActivityLog[];
-  addRetreat: (retreat: Omit<Retreat, "id">) => void;
-  updateRetreat: (id: string, data: Partial<Retreat>) => void;
-  deleteRetreat: (id: string) => void;
-  updateParticipant: (id: string, data: Partial<Participant>) => void;
+  updateParticipantStatus: (participantId: string, status: string) => void;
+  updateParticipant?: (id: string, data: Partial<Participant>) => void;
+  assignRoomToParticipant: (participantId: string, roomId: string | null | undefined) => void;
   assignRoom: (participantId: string, roomId: string | null | undefined) => void;
   confirmParticipationFee: (participantId: string) => void;
   checkIn: (participantId: string) => void;
   checkOut: (participantId: string) => void;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
+  markNotificationRead?: (id: string) => void;
+  markAllNotificationsRead?: () => void;
   updateChurch: (data: Partial<Church>) => void;
-  registerPublicParticipant: (data: PublicRegistrationInput) => Participant;
-  resetDatabase: () => void;
-  getStats: () => {
-    totalParticipants: number;
-    men: number;
-    women: number;
-    availableRooms: number;
-    occupiedRooms: number;
-    registered: number;
-    arrived: number;
-    checkedOut: number;
-  };
-  getUnassignedParticipants: () => Participant[];
-  getRoomWithOccupants: (roomId: string) => { room: Room; occupants: Participant[] };
-  getPavilionStats: (id: string) => { roomCount: number; occupants: number };
   addRoom: (room: Omit<Room, "id">) => void;
   updateRoom: (id: string, data: Partial<Room>) => void;
   deleteRoom: (id: string) => void;
+  registerPublicParticipant: (data: PublicRegistrationInput) => Promise<Participant>;
+  getStats: () => any;
+  getUnassignedParticipants: () => Participant[];
+  resetDatabase?: () => void;
+  getRoomWithOccupants: (roomId: string) => { room: Room; occupants: Participant[] };
+  getPavilionStats: (id: string) => { roomCount: number; occupants: number };
+  addRetreat?: (retreat: Omit<Retreat, "id">) => void;
+  updateRetreat?: (id: string, data: Partial<Retreat>) => void;
+  deleteRetreat?: (id: string) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
-type PersistableState = {
-  church: Church;
-  retreats: Retreat[];
-  participants: Participant[];
-  rooms: Room[];
-  notifications: Notification[];
-  activityLogs: ActivityLog[];
-};
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("auth_token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+}
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
@@ -95,309 +86,119 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
-  const persist = useCallback((state: PersistableState) => {
-    saveLocalDatabase(state);
-  }, []);
-
+  // Hydratation initiale depuis MySQL via l'API
   useEffect(() => {
-    const db = loadLocalDatabase() as any;
-    setChurch(db.church);
-    setRetreats(db.retreats);
-    setParticipants(db.participants);
-    // Correction ici : Accepte un tableau vide sans recharger les mockRooms par défaut
-    setRooms(Array.isArray(db.rooms) ? db.rooms : mockRooms);
-    setNotifications(db.notifications);
-    setActivityLogs(db.activityLogs);
-    setIsReady(true);
+    async function loadData() {
+      try {
+        console.log("load data")
+        const db = await fetchDatabase();
+        console.log(db)
+        setChurch(db.church || mockChurch);
+        setRetreats(db.retreats || mockRetreats);
+        setParticipants(db.participants || []);
+        setRooms(db.rooms || []);
+        setNotifications(db.notifications || []);
+        setActivityLogs(db.activityLogs || []);
+        setIsReady(true);
+      } catch (error) {
+        setChurch(mockChurch);
+        setRetreats( mockRetreats);
+        setParticipants( []);
+        setRooms( []);
+        setNotifications( []);
+        setActivityLogs( []);
+        setIsReady(true);
+        console.log("error data")
+        console.error("Erreur de chargement de l'API", error);
+      }
+    }
+    loadData();
   }, []);
 
-  useEffect(() => {
-    if (!isReady) return;
-    persist({ church, retreats, participants, rooms, notifications, activityLogs });
-  }, [church, retreats, participants, rooms, notifications, activityLogs, isReady, persist]);
+  // 🛠️ ACTIONS INTERMUTÉES AVEC L'API NODE.JS + APPROCHE OPTIMISTE POUR LE UI
 
-  const addRetreat = useCallback((retreat: Omit<Retreat, "id">) => {
-    const newRetreat: Retreat = { ...retreat, id: `ret-${Date.now()}` };
-    setRetreats((prev) => [...prev, newRetreat]);
-    setActivityLogs((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        retreatId: newRetreat.id,
-        action: "Création",
-        description: `Retraite "${newRetreat.name}" créée`,
-        timestamp: new Date().toISOString(),
-        userId: "user-1",
-      },
-      ...prev,
-    ]);
-  }, []);
-
-  const updateRetreat = useCallback((id: string, data: Partial<Retreat>) => {
-    setRetreats((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)));
-  }, []);
-
-  const deleteRetreat = useCallback((id: string) => {
-    setRetreats((prev) => prev.filter((item) => item.id !== id));
-  }, []);
-
-  const updateParticipant = useCallback((id: string, data: Partial<Participant>) => {
-    setParticipants((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
-  }, []);
-
-  const addRoom = useCallback((room: Omit<Room, "id">) => {
-    const newRoom: Room = { 
-      ...room, 
-      id: `room-${Date.now()}`
-    };
+  const addRoom = useCallback(async (room: Omit<Room, "id">) => {
+    const res = await fetch(`${API_ADMIN_URL}/rooms`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(room),
+    });
+    const newRoom = await res.json();
     setRooms((prev) => [...prev, newRoom]);
   }, []);
 
-  const updateRoom = useCallback((id: string, data: Partial<Room>) => {
+  const updateRoom = useCallback(async (id: string, data: Partial<Room>) => {
     setRooms((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)));
+    await fetch(`${API_ADMIN_URL}/rooms/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
   }, []);
 
-  const deleteRoom = useCallback((id: string) => {
+  const deleteRoom = useCallback(async (id: string) => {
     setRooms((prev) => prev.filter((r) => r.id !== id));
-    setParticipants((prev) =>
-      prev.map((p) => (p.roomId === id ? { ...p, roomId: undefined } : p))
-    );
+    await fetch(`${API_ADMIN_URL}/rooms/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   }, []);
 
-  const updateParticipantStatus = useCallback((participantId: string, status: string) => {
-    const participant = participants.find((p) => p.id === participantId);
-    
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === participantId ? { ...p, status: status as any } : p))
-    );
-
-    if (participant) {
-      setActivityLogs((prev) => [
-        {
-          id: `act-${Date.now()}`,
-          retreatId: participant.retreatId,
-          action: "Mise à jour statut",
-          description: `Statut de ${participant.fullName} modifié en "${status}"`,
-          timestamp: new Date().toISOString(),
-          userId: "user-1",
-        },
-        ...prev,
-      ]);
-    }
-  }, [participants]);
-
-  const assignRoomToParticipant = useCallback((participantId: string, roomId: string | null | undefined) => {
-    const participant = participants.find((p) => p.id === participantId);
-    const room = roomId ? rooms.find((r) => r.id === roomId) : undefined;
-
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === participantId ? { ...p, roomId: roomId || undefined } : p))
-    );
-
-    if (participant && room) {
-      setNotifications((prev) => [
-        {
-          id: `notif-${Date.now()}`,
-          type: "chambre",
-          title: "Chambre assignée",
-          message: `${participant.fullName} a reçu la chambre ${room.number}.`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-    }
-  }, [participants, rooms]);
-
-  const assignRoom = useCallback((participantId: string, roomId: string | null | undefined) => {
-    const participant = participants.find((p) => p.id === participantId);
-    const room = roomId ? rooms.find((r) => r.id === roomId) : undefined;
-
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === participantId ? { ...p, roomId: roomId || undefined } : p))
-    );
-
-    if (participant && room) {
-      setNotifications((prev) => [
-        {
-          id: `notif-${Date.now()}`,
-          type: "chambre",
-          title: "Chambre attribuée",
-          message: `${participant.fullName} a été assigné(e) à la chambre ${room.number}.`,
-          read: false,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      setActivityLogs((prev) => [
-        {
-          id: `act-${Date.now()}`,
-          retreatId: participant.retreatId,
-          action: "Attribution chambre",
-          description: `Chambre ${room.number} attribuée à ${participant.fullName}`,
-          timestamp: new Date().toISOString(),
-          userId: "user-1",
-        },
-        ...prev,
-      ]);
-    } else if (participant && !roomId) {
-      setActivityLogs((prev) => [
-        {
-          id: `act-${Date.now()}`,
-          retreatId: participant.retreatId,
-          action: "Retrait chambre",
-          description: `${participant.fullName} a été retiré(e) de sa chambre`,
-          timestamp: new Date().toISOString(),
-          userId: "user-1",
-        },
-        ...prev,
-      ]);
-    }
-  }, [participants, rooms]);
-
-  const confirmParticipationFee = useCallback((participantId: string) => {
-    const participant = participants.find((p) => p.id === participantId);
-    if (!participant || participant.feePaid) return;
-
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === participantId
-          ? {
-              ...p,
-              feePaid: true,
-              feePaidAt: new Date().toISOString(),
-              status: p.status === "inscrit" ? ("confirme" as const) : p.status,
-            }
-          : p
-      )
-    );
-
-    setNotifications((prev) => [
-      {
-        id: `notif-${Date.now()}`,
-        type: "inscription",
-        title: "Paiement confirmé",
-        message: `Les frais de participation de ${participant.fullName} ont été confirmés.`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-
-    setActivityLogs((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        retreatId: participant.retreatId,
-        action: "Paiement",
-        description: `Frais de participation confirmés pour ${participant.fullName}`,
-        timestamp: new Date().toISOString(),
-        userId: "user-1",
-      },
-      ...prev,
-    ]);
-  }, [participants]);
-
-  const checkIn = useCallback((participantId: string) => {
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === participantId
-          ? { ...p, status: "arrive" as const, checkedInAt: new Date().toISOString() }
-          : p
-      )
-    );
+  const updateParticipantStatus = useCallback(async (participantId: string, status: string) => {
+    setParticipants((prev) => prev.map((p) => (p.id === participantId ? { ...p, status: status as any } : p)));
+    await fetch(`${API_ADMIN_URL}/participants/${participantId}/status`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    });
   }, []);
 
-  const checkOut = useCallback((participantId: string) => {
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === participantId
-          ? { ...p, status: "parti" as const, checkedOutAt: new Date().toISOString(), roomId: undefined }
-          : p
-      )
-    );
+  const assignRoom = useCallback(async (participantId: string, roomId: string | null | undefined) => {
+    setParticipants((prev) => prev.map((p) => (p.id === participantId ? { ...p, roomId: roomId || undefined } : p)));
+    await fetch(`${API_ADMIN_URL}/participants/${participantId}/assign-room`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ roomId: roomId || null }),
+    });
   }, []);
 
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const confirmParticipationFee = useCallback(async (participantId: string) => {
+    setParticipants((prev) => prev.map((p) => p.id === participantId ? { ...p, feePaid: true, status: "confirme" } : p));
+    await fetch(`${API_ADMIN_URL}/participants/${participantId}/confirm-fee`, { method: "PUT", headers: getAuthHeaders() });
   }, []);
 
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const checkIn = useCallback(async (participantId: string) => {
+    setParticipants((prev) => prev.map((p) => p.id === participantId ? { ...p, status: "arrive" } : p));
+    await fetch(`${API_ADMIN_URL}/participants/${participantId}/checkin`, { method: "PUT", headers: getAuthHeaders() });
   }, []);
 
-  const updateChurch = useCallback((data: Partial<Church>) => {
+  const checkOut = useCallback(async (participantId: string) => {
+    setParticipants((prev) => prev.map((p) => p.id === participantId ? { ...p, status: "parti", roomId: undefined } : p));
+    await fetch(`${API_ADMIN_URL}/participants/${participantId}/checkout`, { method: "PUT", headers: getAuthHeaders() });
+  }, []);
+
+  const updateChurch = useCallback(async (data: Partial<Church>) => {
     setChurch((prev) => ({ ...prev, ...data }));
+    await fetch(`${API_ADMIN_URL}/church`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(data) });
   }, []);
 
-  const registerPublicParticipant = useCallback((data: PublicRegistrationInput): Participant => {
-    const registrationNumber = getNextRegistrationNumber(participants);
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.fullName)}&background=${data.gender === "homme" ? "2563EB" : "DB2777"}&color=fff&size=128`;
-
-    const newParticipant: Participant = {
-      id: `part-${Date.now()}`,
-      registrationNumber,
-      fullName: data.fullName,
-      email: data.email?.trim() || "—",
-      phone: data.phone,
-      gender: data.gender,
-      church: church.name,
-      retreatId: data.retreatId,
-      status: "inscrit",
-      avatar,
-      registeredAt: new Date().toISOString(),
-      emergencyContact: data.emergencyContact,
-      notes: data.notes,
-      source: "public",
-    };
-
+  // Formulaire d'inscription public (Sans Token dans le header)
+  const registerPublicParticipant = useCallback(async (data: PublicRegistrationInput): Promise<Participant> => {
+    const res = await fetch(`${API_PUBLIC_URL}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const newParticipant = await res.json();
     setParticipants((prev) => [...prev, newParticipant]);
-
-    const retreat = retreats.find((r) => r.id === data.retreatId);
-    setNotifications((prev) => [
-      {
-        id: `notif-${Date.now()}`,
-        type: "inscription",
-        title: "Nouvelle inscription publique",
-        message: `${data.fullName} vient de réserver sa place pour ${retreat?.name ?? "une retraite"}.`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-
-    setActivityLogs((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        retreatId: data.retreatId,
-        action: "Inscription publique",
-        description: `${data.fullName} (${registrationNumber}) inscrit(e) via le formulaire public`,
-        timestamp: new Date().toISOString(),
-        userId: "public",
-      },
-      ...prev,
-    ]);
-
     return newParticipant;
-  }, [participants, retreats, church.name]);
-
-  const resetDatabase = useCallback(() => {
-    const seed = resetLocalDatabase() as any;
-    setChurch(seed.church);
-    setRetreats(seed.retreats);
-    setParticipants(seed.participants);
-    setRooms(seed.rooms || mockRooms);
-    setNotifications(seed.notifications);
-    setActivityLogs(seed.activityLogs);
   }, []);
 
+  // 📊 LOGIQUE DE CALCULS ET STATS FRONTEND (Inchangé)
   const getStats = useCallback(() => {
     const active = participants.filter((p) => p.status !== "annule");
-    const men = active.filter((p) => p.gender === "homme").length;
-    const women = active.filter((p) => p.gender === "femme").length;
     const occupiedRooms = rooms.filter((r) => getRoomOccupants(r.id, participants).length > 0).length;
     return {
       totalParticipants: active.length,
-      men,
-      women,
+      men: active.filter((p) => p.gender === "homme").length,
+      women: active.filter((p) => p.gender === "femme").length,
       availableRooms: rooms.length - occupiedRooms,
       occupiedRooms,
       registered: active.filter((p) => p.status === "inscrit" || p.status === "confirme").length,
@@ -407,98 +208,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [participants, rooms]);
 
   const getUnassignedParticipants = useCallback(() => {
-    return participants.filter(
-      (p) => !p.roomId && p.status !== "annule" && p.status !== "parti"
-    );
+    return participants.filter((p) => !p.roomId && p.status !== "annule" && p.status !== "parti");
   }, [participants]);
 
-  const getRoomWithOccupants = useCallback(
-    (roomId: string) => {
-      const room = rooms.find((r) => r.id === roomId);
-      const targetRoom: Room = room || { 
-        id: roomId, 
-        number: "Inconnue", 
-        capacity: 4, 
-        pavilionId: "1",
-        gender: "mixte" as const
-      };
-      return { room: targetRoom, occupants: getRoomOccupants(roomId, participants) };
-    },
-    [rooms, participants]
-  );
+  const getRoomWithOccupants = useCallback((roomId: string) => {
+    const room = rooms.find((r) => r.id === roomId);
+    const targetRoom: Room = room || { id: roomId, number: "Inconnue", capacity: 4, pavilionId: "1", gender: "mixte" };
+    return { room: targetRoom, occupants: getRoomOccupants(roomId, participants) };
+  }, [rooms, participants]);
 
-  const value = useMemo(
-    () => ({
-      isReady,
-      church,
-      retreats,
-      participants,
-      rooms,
-      users,
-      notifications,
-      activityLogs,
-      addRetreat,
-      updateRetreat,
-      deleteRetreat,
-      updateParticipant,
-      updateParticipantStatus,
-      assignRoomToParticipant,
-      assignRoom,
-      confirmParticipationFee,
-      checkIn,
-      checkOut,
-      markNotificationRead,
-      markAllNotificationsRead,
-      updateChurch,
-      registerPublicParticipant,
-      resetDatabase,
-      getStats,
-      getUnassignedParticipants,
-      getRoomWithOccupants,
-      getPavilionStats: (id: string) => getPavilionStats(id, rooms, participants),
-      addRoom,
-      updateRoom,
-      deleteRoom,
-    }),
-    [
-      isReady,
-      church,
-      retreats,
-      participants,
-      rooms,
-      users,
-      notifications,
-      activityLogs,
-      addRetreat,
-      updateRetreat,
-      deleteRetreat,
-      updateParticipant,
-      updateParticipantStatus,
-      assignRoomToParticipant,
-      assignRoom,
-      confirmParticipationFee,
-      checkIn,
-      checkOut,
-      markNotificationRead,
-      markAllNotificationsRead,
-      updateChurch,
-      registerPublicParticipant,
-      resetDatabase,
-      getStats,
-      getUnassignedParticipants,
-      getRoomWithOccupants,
-      addRoom,
-      updateRoom,
-      deleteRoom,
-    ]
-  );
+  const value = useMemo(() => ({
+    isReady, church, retreats, participants, rooms, users, notifications, activityLogs,
+    updateParticipantStatus, assignRoomToParticipant: assignRoom, assignRoom, confirmParticipationFee,
+    checkIn, checkOut, updateChurch, addRoom, updateRoom, deleteRoom, registerPublicParticipant,
+    getStats, getUnassignedParticipants, getRoomWithOccupants, getPavilionStats: (id: string) => getPavilionStats(id, rooms, participants)
+  }), [isReady, church, retreats, participants, rooms, users, notifications, activityLogs, assignRoom, updateParticipantStatus, confirmParticipationFee, checkIn, checkOut, updateChurch, addRoom, updateRoom, deleteRoom, registerPublicParticipant, getStats, getUnassignedParticipants, getRoomWithOccupants]);
 
   if (!isReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="h-8 w-8 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500">Chargement des données...</p>
+          <p className="text-sm text-slate-500">Connexion sécurisée à la base MySQL...</p>
         </div>
       </div>
     );
