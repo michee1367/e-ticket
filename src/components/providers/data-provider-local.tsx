@@ -335,6 +335,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const newParticipant: Participant = {
       id: `part-${Date.now()}`,
       registrationNumber,
+      badgeNumber:undefined,
       fullName: data.fullName,
       email: data.email?.trim() || "—",
       phone: data.phone,

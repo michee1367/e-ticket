@@ -128,6 +128,7 @@ function generateParticipants(): Participant[] {
     participants.push({
       id: `part-${String(i + 1).padStart(4, "0")}`,
       registrationNumber: `REG-2026-${String(i + 1).padStart(4, "0")}`,
+      badgeNumber:undefined,
       fullName,
       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.cd`,
       phone: phone(),

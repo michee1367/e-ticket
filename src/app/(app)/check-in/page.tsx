@@ -29,8 +29,9 @@ export default function CheckInPage() {
     const found = participants.find(
       (p) =>
         p.fullName.toLowerCase().includes(q) ||
-        p.phone.includes(q) ||
-        p.registrationNumber.toLowerCase().includes(q)
+        p.phone.includes(q) || (
+        p.registrationNumber != null &&
+        p.registrationNumber.toLowerCase().includes(q))
     );
 
     setResult(found || null);

@@ -29,8 +29,11 @@ export default function CheckOutPage() {
     const found = participants.find(
       (p) =>
         (p.fullName.toLowerCase().includes(q) ||
-          p.phone.includes(q) ||
-          p.registrationNumber.toLowerCase().includes(q)) &&
+          p.phone.includes(q) || (
+            p.registrationNumber != null &&
+            p.registrationNumber.toLowerCase().includes(q)
+          )
+          ) &&
         p.status === "arrive"
     );
 
