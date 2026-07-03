@@ -137,14 +137,8 @@ export default function ParticipantsContent() {
       cell: ({ row }) => {
         const p = row.original;
         // @ts-ignore
-        if (p.badge) return <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{(p as any).badge}</span>;
+        if (p.badgeNumber) return <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{(p as any).badgeNumber}</span>;
         
-        if (p.status === "confirme" || p.status === "arrive" || p.status === "parti") {
-          const listApproved = participants.filter(item => item.status === "confirme" || item.status === "arrive" || item.status === "parti");
-          const pos = listApproved.findIndex(item => item.id === p.id) + 1;
-          const formatted = String(pos > 0 ? pos : row.index + 1).padStart(3, "0");
-          return <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{formatted}</span>;
-        }
         return <span className="text-slate-400 text-xs">—</span>;
       }
     },

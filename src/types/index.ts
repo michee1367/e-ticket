@@ -73,7 +73,8 @@ export interface EmergencyContact {
 
 export interface Participant {
   id: string;
-  registrationNumber: string;
+  registrationNumber: string|undefined|null;
+  badgeNumber: string|undefined|null;
   fullName: string;
   email: string;
   phone: string;

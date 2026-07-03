@@ -138,7 +138,7 @@ export function PublicRegistrationForm({ retreat }: PublicRegistrationFormProps)
                 Inscription confirmée !
               </CardTitle>
               <CardDescription className="text-sm sm:text-base mt-1">
-                Merci de vous être enregistré pour votre participation à la retraite, vous recevrez votre badje d’accès lors de votre confirmation ( paiement) à la table de littérature De L’Église la présence de Dieu m’accompagne
+                Merci de vous être enregistré pour votre participation à la retraite, vous recevrez votre badje d’accès lors de votre confirmation ( paiement) à la table de littérature De L’Église LA PRÉSENCE DE DIEU MACAMPAGNE
               </CardDescription>
             </CardHeader>
 

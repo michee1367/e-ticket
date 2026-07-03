@@ -142,12 +142,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateParticipantStatus = useCallback(async (participantId: string, status: string) => {
-    setParticipants((prev) => prev.map((p) => (p.id === participantId ? { ...p, status: status as any } : p)));
-    await fetch(`${API_ADMIN_URL}/participants/${participantId}/status`, {
+    const res = await fetch(`${API_ADMIN_URL}/participants/${participantId}/status`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
     });
+    
+    // 2. Gestion des autres erreurs serveurs
+    if (!res.ok) {
+      throw new Error("Erreur serveur lors de la confirmation de l'enregistrement");
+    }
+
+    // 3. Récupération et enrichissement des données
+    const updated = await res.json();
+    setParticipants((prev) => 
+        prev.map((p) => p.id === participantId ? { 
+          ...p, 
+          status: "confirme", 
+          badgeNumber:updated.badgeNumber,
+          roomId:updated.roomId
+        } : p));
   }, []);
 
   const assignRoom = useCallback(async (participantId: string, roomId: string | null | undefined) => {
@@ -160,8 +174,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const confirmParticipationFee = useCallback(async (participantId: string) => {
-    setParticipants((prev) => prev.map((p) => p.id === participantId ? { ...p, feePaid: true, status: "confirme" } : p));
-    await fetch(`${API_ADMIN_URL}/participants/${participantId}/confirm-fee`, { method: "PUT", headers: getAuthHeaders() });
+    const res = await fetch(`${API_ADMIN_URL}/participants/${participantId}/confirm-fee`, { method: "PUT", headers: getAuthHeaders() });
+    
+    // 2. Gestion des autres erreurs serveurs
+    if (!res.ok) {
+      throw new Error("Erreur serveur lors de la confirmation de l'enregistrement");
+    }
+
+    // 3. Récupération et enrichissement des données
+    const updated = await res.json();
+    setParticipants((prev) => prev.map((p) => 
+      p.id === participantId ? { 
+        ...p, feePaid: true, 
+        status: "confirme", 
+        badgeNumber:updated.badgeNumber,
+        roomId:updated.roomId
+      } : p));
   }, []);
 
   const checkIn = useCallback(async (participantId: string) => {
